@@ -72,10 +72,12 @@ movMFnoise <- function(x, G, noise_init = 0.1, max_iter = 100, tol = 1e-6,
   # EM algorithm
   for (iter in 1:max_iter) {
     # E-step: Compute posterior probabilities
-    posterior <- e_step(x, alpha, mu, kappa, noise)
+    e_result <- e_step(x, alpha, mu, kappa, noise)
+    posterior <- e_result$posterior
+    component_dens <- e_result$component_dens
     
-    # Compute log-likelihood
-    loglik[iter] <- sum(log(rowSums(posterior)))
+    # Compute log-likelihood from component densities (before normalization)
+    loglik[iter] <- sum(log(rowSums(component_dens)))
     
     if (verbose) {
       cat(sprintf("Iteration %d: loglik = %.4f\n", iter, loglik[iter]))
@@ -171,20 +173,20 @@ e_step <- function(x, alpha, mu, kappa, noise) {
   d <- ncol(x)
   
   # Compute component densities
-  posterior <- matrix(0, nrow = n, ncol = G + 1)
+  component_dens <- matrix(0, nrow = n, ncol = G + 1)
   
   for (g in 1:G) {
-    posterior[, g] <- alpha[g] * dmovMF_fast(x, mu[, g], kappa[g])
+    component_dens[, g] <- alpha[g] * dmovMF_fast(x, mu[, g], kappa[g])
   }
   
   # Noise component (uniform on sphere)
   sphere_area <- 2 * pi^(d/2) / gamma(d/2)
-  posterior[, G + 1] <- noise / sphere_area
+  component_dens[, G + 1] <- noise / sphere_area
   
-  # Normalize
-  posterior <- posterior / rowSums(posterior)
+  # Normalize to get posterior probabilities
+  posterior <- component_dens / rowSums(component_dens)
   
-  return(posterior)
+  return(list(posterior = posterior, component_dens = component_dens))
 }
 
 #' M-step: Update Parameters

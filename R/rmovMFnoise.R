@@ -24,7 +24,6 @@
 #'         (0 for noise, 1:G for components)}
 #' }
 #'
-#' @importFrom movMF rmovMF
 #' @export
 #'
 #' @examples
@@ -90,7 +89,7 @@ rmovMFnoise <- function(n, theta, noise = NULL) {
   for (g in 1:G) {
     n_g <- sum(cluster == g)
     if (n_g > 0) {
-      data[cluster == g, ] <- movMF::rmovMF(n_g, theta = mu[, g], kappa = kappa[g])
+      data[cluster == g, ] <- rmovMF(n_g, mu = mu[, g], kappa = kappa[g])
     }
   }
   

@@ -19,7 +19,6 @@
 #'
 #' @return Numeric vector of density values for each observation.
 #'
-#' @importFrom movMF dmovMF
 #' @export
 #'
 #' @examples
@@ -64,7 +63,7 @@ dmovMFnoise <- function(x, theta, noise = NULL, log = FALSE) {
   dens <- matrix(0, nrow = n, ncol = G + 1)
   
   for (g in 1:G) {
-    dens[, g] <- alpha[g] * movMF::dmovMF(x, theta = mu[, g], kappa = kappa[g])
+    dens[, g] <- alpha[g] * dmovMF(x, mu = mu[, g], kappa = kappa[g])
   }
   
   # Add noise component (uniform density on d-dimensional sphere)
