@@ -1,0 +1,18 @@
+Package: movMFnoise
+Type: Package
+Title: Mixture of von Mises-Fisher Distributions with Noise
+Version: 0.1.0
+Authors@R: c(
+    person("Andrea", "Cappozzo", email = "andrea.cappozzo@polimi.it", role = c("aut", "cre"))
+    )
+Description: Provides functions for fitting mixture of von Mises-Fisher distributions 
+    on the unit hypersphere using the EM algorithm.
+License: Apache License (>= 2)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.0.0
+Imports:
+    movMF
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
