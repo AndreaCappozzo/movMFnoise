@@ -1,0 +1,94 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# movMFnoise
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+An R package for fitting **mixture models of von Mises-Fisher distributions** with an optional **uniform noise component** on the unit hypersphere. The package implements an EM algorithm optimized for directional data and follows the mclust modeling convention.
+
+## Overview
+
+The von Mises-Fisher (vMF) distribution is the spherical analog of the multivariate normal distribution and is widely used for modeling directional data such as:
+
+- Text document analysis (word embeddings, topic models)
+- Bioinformatics (protein structure, gene expression)
+- Earth sciences (paleomagnetism, wind directions)
+- Computer vision (orientation data)
+
+**movMFnoise** extends standard vMF mixture models by allowing a uniform noise component to capture outliers and uniformly distributed observations on the hypersphere.
+
+## Key Features
+
+- **EM algorithm** for von Mises-Fisher mixture models
+- **Automatic model selection** across multiple values of G (number of components)
+- **Optional uniform noise component** following mclust convention
+- **Multiple random starts** for robust parameter initialization
+- **Model selection criteria**: BIC and ICL
+- **S3 methods** for prediction, summary, and classification
+
+## Installation
+
+You can install the development version of movMFnoise from GitHub:
+
+```r
+# Install from GitHub
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  install.packages("remotes")
+}
+remotes::install_github("AndreaCappozzo/movMFnoise")
+```
+
+The package requires the `movMF` package for data simulation and internal computations:
+
+```r
+install.packages("movMF")
+```
+
+## Quick Start
+
+```r
+library(movMFnoise)
+
+# Simulate data: 2 clusters + uniform noise on 3D sphere
+set.seed(123)
+n <- 130
+x1 <- movMF::rmovMF(50, theta = c(10, 0, 0))  # Cluster 1
+x2 <- movMF::rmovMF(50, theta = c(0, 5, 0))   # Cluster 2
+noise <- matrix(rnorm(30 * 3), ncol = 3)
+noise <- noise / sqrt(rowSums(noise^2))       # Uniform noise
+data <- rbind(x1, x2, noise)
+
+# Fit model with noise component
+fit <- fit_movMFnoise(data, G = 2, noise = TRUE, 
+                      control = control_movMFnoise(nstart = 5))
+
+# View results
+summary(fit)
+table(fit$classification)  # 0 = noise, 1:G = components
+```
+
+### Related R Packages
+
+- [**movMF**](https://cran.r-project.org/package=movMF): von Mises-Fisher distributions and basic mixture models
+- [**mclust**](https://cran.r-project.org/package=mclust): Gaussian mixture modeling with noise components
+- [**skmeans**](https://cran.r-project.org/package=skmeans): Spherical k-means clustering
+- [**Directional**](https://cran.r-project.org/package=Directional): Directional statistics including vMF distributions
+
+### References
+
+- Banerjee, A., Dhillon, I. S., Ghosh, J., & Sra, S. (2005). Clustering on the unit hypersphere using von Mises-Fisher distributions. *Journal of Machine Learning Research*, 6, 1345-1382.
+- Hornik, K., & Grün, B. (2014). movMF: An R package for fitting mixtures of von Mises-Fisher distributions. *Journal of Statistical Software*, 58(10), 1-31.

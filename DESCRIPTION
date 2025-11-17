@@ -1,0 +1,37 @@
+Package: movMFnoise
+Title: Mixtures of von Mises-Fisher Distributions with a Noise Component
+Version: 0.0.0.9000
+Authors@R: 
+    c(person(given = "Andrea",
+             family = "Cappozzo",
+             role = c("aut", "cre"),
+             email = "andrea.cappozzo@unicatt.it",
+             comment = c(ORCID = "0000-0001-9348-710X")),
+      person(given = "Luca",
+             family = "Scrucca",
+             role = "aut",
+             email = "luca.scrucca@unibo.it",
+             comment = c(ORCID = "0000-0003-3826-0484")),
+      person(given = "Brendan",
+             family = "Murphy",
+             role = "aut",
+             email = "brendan.murphy@ucd.ie",
+             comment = c(ORCID = "0000-0002-5668-7046")))
+Description: Fits mixtures of von Mises-Fisher distributions with a noise 
+    component on the high-dimensional unit hypersphere using the EM algorithm. 
+    The package provides functions for model estimation, model selection via 
+    BIC and ICL, and includes a noise component to handle outliers and uniform 
+    noise. It follows the same conventions as the 'movMF' package for 
+    parameterization and concentration parameter (kappa) computation.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports: 
+    movMF,
+    skmeans,
+    clue
+Suggests:
+    testthat (>= 3.0.0),
+    mclust
+Config/testthat/edition: 3
