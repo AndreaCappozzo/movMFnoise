@@ -25,7 +25,7 @@ An R package for fitting **mixture models of von Mises-Fisher distributions** wi
 The von Mises-Fisher (vMF) distribution is the spherical analog of the multivariate normal distribution and is widely used for modeling directional data such as:
 
 - Text document analysis (word embeddings, topic models)
-- Bioinformatics (protein structure, gene expression)
+- Bioinformatics (protein structure, gene expression data)
 - Earth sciences (paleomagnetism, wind directions)
 - Computer vision (orientation data)
 
