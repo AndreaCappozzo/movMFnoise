@@ -459,6 +459,7 @@ em_movMF <- function(
 #'   Default values are obtained by calling \code{control_movMFnoise()}.
 #' @param verbose Logical; if TRUE, print progress information (default: FALSE)
 #' @param criterion Character; model selection criterion, either "bic" (default) or "icl"
+#' @param keep_all Logical; if TRUE, all fitted models are returned in the output (default: FALSE)
 #'
 #' @return A list with class "movMFnoise" containing the best model, plus additional components:
 #'   \item{G_sequence}{Vector of G values tried}
@@ -506,7 +507,8 @@ fit_movMFnoise <- function(
   noise = FALSE,
   control = control_movMFnoise(),
   verbose = FALSE,
-  criterion = c("bic", "icl")
+  criterion = c("bic", "icl"),
+  keep_all = FALSE
 ) {
   criterion <- match.arg(criterion)
 
@@ -657,6 +659,11 @@ fit_movMFnoise <- function(
     stringsAsFactors = FALSE
   )
   best_model$model_summary <- model_summary
+
+  # Optionally include all fitted models
+  if (keep_all) {
+    best_model$all_models <- all_models
+  }
 
   class(best_model) <- c("movMFnoise", "movMFnoise_fitted")
 

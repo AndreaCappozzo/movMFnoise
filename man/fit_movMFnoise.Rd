@@ -10,7 +10,8 @@ fit_movMFnoise(
   noise = FALSE,
   control = control_movMFnoise(),
   verbose = FALSE,
-  criterion = c("bic", "icl")
+  criterion = c("bic", "icl"),
+  keep_all = FALSE
 )
 }
 \arguments{
@@ -29,6 +30,8 @@ Default values are obtained by calling \code{control_movMFnoise()}.}
 \item{verbose}{Logical; if TRUE, print progress information (default: FALSE)}
 
 \item{criterion}{Character; model selection criterion, either "bic" (default) or "icl"}
+
+\item{keep_all}{Logical; if TRUE, all fitted models are returned in the output (default: FALSE)}
 }
 \value{
 A list with class "movMFnoise" containing the best model, plus additional components:
