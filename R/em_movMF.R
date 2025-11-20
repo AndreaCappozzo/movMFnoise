@@ -93,7 +93,16 @@ em_movMF <- function(
     }
 
     # Initialize parameters
-    init <- .initialize_params(x, n, d, G, has_noise, noise_idx, start_method)
+    init <- .initialize_params(
+      x,
+      n,
+      d,
+      G,
+      has_noise,
+      noise_idx,
+      start_method,
+      control
+    )
     theta <- init$theta
     pro <- init$pro
 
@@ -174,7 +183,7 @@ em_movMF <- function(
       # ICL: BIC penalized by entropy (higher is better)
       # Entropy term: sum over all obs of sum over all components of z_ig * log(z_ig)
       # This is negative, so we add it to penalize less certain classifications
-      entropy <- sum(z * log(z + 1e-10), na.rm = TRUE)
+      entropy <- sum(z * log(z), na.rm = TRUE)
       icl <- bic + 2 * entropy
 
       best_result <- list(
@@ -219,6 +228,7 @@ em_movMF <- function(
 #' @param has_noise Logical; whether noise component is included
 #' @param noise_idx Numeric vector of indices initially assigned to noise (optional)
 #' @param start Initialization method: "p" (partition-based), "s"/"S" (seeds), or "i" (random ids)
+#' @param control List of control parameters (used to get kappa_method and noise_prop)
 #' @return List with theta and pro
 #' @keywords internal
 .initialize_params <- function(
@@ -228,8 +238,13 @@ em_movMF <- function(
   G,
   has_noise = FALSE,
   noise_idx = NULL,
-  start = "p"
+  start = "p",
+  control = control_movMFnoise()
 ) {
+  # Get kappa solver from control
+  solve_kappa_obj <- movMF:::get_solve_kappa(control$kappa_method)
+  do_kappa <- solve_kappa_obj$do_kappa
+
   # Determine which observations to use for initialization
   if (has_noise && !is.null(noise_idx)) {
     # Exclude noise observations from initialization
@@ -279,15 +294,12 @@ em_movMF <- function(
   norms <- sqrt(rowSums(M^2))
   mu_init <- M / ifelse(norms > 0, norms, 1)
 
-  # Get kappa solver
-  solve_kappa_obj <- movMF:::get_solve_kappa("Banerjee_et_al_2005")
-  do_kappa <- solve_kappa_obj$do_kappa
   kappa_init <- do_kappa(norms, w, d, nu = 0)
 
   # Adjust mixing proportions if noise component is present
   if (has_noise) {
-    # Reserve some probability mass for noise component
-    noise_prop <- 0.1
+    # Use noise_prop from control
+    noise_prop <- control$noise_prop
     pro_init <- c(pro_init * (1 - noise_prop), noise_prop)
   }
 

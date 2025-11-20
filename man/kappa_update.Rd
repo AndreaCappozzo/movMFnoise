@@ -4,12 +4,12 @@
 \alias{kappa_update}
 \title{Compute MLE update for kappa (concentration parameter)}
 \usage{
-kappa_update(x, method = "Banerjee_et_al_2005")
+kappa_update(x, method = "Newton_Fourier")
 }
 \arguments{
 \item{x}{Data matrix (n x d) where each row is a unit vector on the hypersphere}
 
-\item{method}{Method for computing kappa (default: "Banerjee_et_al_2005")}
+\item{method}{Method for computing kappa (default: "Newton_Fourier")}
 }
 \value{
 Concentration parameter kappa

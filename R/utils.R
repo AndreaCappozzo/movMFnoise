@@ -36,10 +36,10 @@ mu_update <- function(x) {
 #' Compute MLE update for kappa (concentration parameter)
 #'
 #' @param x Data matrix (n x d) where each row is a unit vector on the hypersphere
-#' @param method Method for computing kappa (default: "Banerjee_et_al_2005")
+#' @param method Method for computing kappa (default: "Newton_Fourier")
 #' @return Concentration parameter kappa
 #' @export
-kappa_update <- function(x, method = "Banerjee_et_al_2005") {
+kappa_update <- function(x, method = "Newton_Fourier") {
   n <- nrow(x)
   d <- ncol(x)
 
@@ -74,7 +74,7 @@ kappa_update <- function(x, method = "Banerjee_et_al_2005") {
 #'   stops when the relative change in log-likelihood is smaller than \code{reltol}.
 #'   Default is \code{sqrt(.Machine$double.eps)}.
 #' @param kappa_method Character. Method for computing the concentration parameter
-#'   kappa. Default is \code{"Banerjee_et_al_2005"}. See \code{\link[movMF]{movMF}}
+#'   kappa. Default is \code{"Newton_Fourier"}. See \code{\link[movMF]{movMF}}
 #'   for available methods.
 #' @param nstart Integer. Number of random starts for the EM algorithm. The best
 #'   solution (highest log-likelihood) across all starts is returned. Default is 10.
@@ -108,15 +108,17 @@ kappa_update <- function(x, method = "Banerjee_et_al_2005") {
 control_movMFnoise <- function(
   maxiter = 100L,
   reltol = sqrt(.Machine$double.eps),
-  kappa_method = "Banerjee_et_al_2005",
+  kappa_method = "Newton_Fourier",
   nstart = 10L,
-  start = "p"
+  start = "p",
+  noise_prop = 0.1
 ) {
   list(
     maxiter = maxiter,
     reltol = reltol,
     kappa_method = kappa_method,
     nstart = nstart,
-    start = start
+    start = start,
+    noise_prop = noise_prop
   )
 }

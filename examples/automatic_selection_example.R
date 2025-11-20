@@ -44,7 +44,7 @@ fit_auto <- fit_movMFnoise(
   x,
   G = 1:4,
   noise = c(FALSE, TRUE),
-  control = control_movMFnoise(nstart = 10, maxiter = 1000),
+  control = control_movMFnoise(nstart = 10, maxiter = 1000, noise_prop = 0.2),
   verbose = TRUE
 )
 

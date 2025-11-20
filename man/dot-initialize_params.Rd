@@ -11,7 +11,8 @@
   G,
   has_noise = FALSE,
   noise_idx = NULL,
-  start = "p"
+  start = "p",
+  control = control_movMFnoise()
 )
 }
 \arguments{
@@ -28,6 +29,8 @@
 \item{noise_idx}{Numeric vector of indices initially assigned to noise (optional)}
 
 \item{start}{Initialization method: "p" (partition-based), "s"/"S" (seeds), or "i" (random ids)}
+
+\item{control}{List of control parameters (used to get kappa_method and noise_prop)}
 }
 \value{
 List with theta and pro

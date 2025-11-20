@@ -7,9 +7,10 @@
 control_movMFnoise(
   maxiter = 100L,
   reltol = sqrt(.Machine$double.eps),
-  kappa_method = "Banerjee_et_al_2005",
+  kappa_method = "Newton_Fourier",
   nstart = 10L,
-  start = "p"
+  start = "p",
+  noise_prop = 0.1
 )
 }
 \arguments{
@@ -20,7 +21,7 @@ stops when the relative change in log-likelihood is smaller than \code{reltol}.
 Default is \code{sqrt(.Machine$double.eps)}.}
 
 \item{kappa_method}{Character. Method for computing the concentration parameter
-kappa. Default is \code{"Banerjee_et_al_2005"}. See \code{\link[movMF]{movMF}}
+kappa. Default is \code{"Newton_Fourier"}. See \code{\link[movMF]{movMF}}
 for available methods.}
 
 \item{nstart}{Integer. Number of random starts for the EM algorithm. The best
