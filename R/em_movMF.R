@@ -103,7 +103,8 @@ em_movMF <- function(
       start_method,
       control
     )
-    theta <- init$theta
+    mu <- init$mu
+    kappa <- init$kappa
     pro <- init$pro
 
     # EM iterations
@@ -113,7 +114,7 @@ em_movMF <- function(
 
     for (iter in 1:maxiter) {
       # E-step: Compute posterior probabilities
-      e_step_result <- .e_step(x, theta, pro, d, Vinv)
+      e_step_result <- .e_step(x, mu, kappa, pro, d, Vinv)
       z <- e_step_result$z
 
       # M-step: Update parameters
@@ -127,10 +128,9 @@ em_movMF <- function(
       mu <- m_step_result$mu
       kappa <- m_step_result$kappa
       pro <- m_step_result$pro
-      theta <- mu * kappa
 
       # Compute log-likelihood
-      loglik <- .compute_loglik(x, theta, pro, d, Vinv)
+      loglik <- .compute_loglik(x, mu, kappa, pro, d, Vinv)
       loglik_trace[iter] <- loglik
 
       # Check convergence
@@ -229,7 +229,7 @@ em_movMF <- function(
 #' @param noise_idx Numeric vector of indices initially assigned to noise (optional)
 #' @param start Initialization method: "p" (partition-based), "s"/"S" (seeds), or "i" (random ids)
 #' @param control List of control parameters (used to get kappa_method and noise_prop)
-#' @return List with theta and pro
+#' @return List with mu, kappa, and pro
 #' @keywords internal
 .initialize_params <- function(
   x,
@@ -303,10 +303,12 @@ em_movMF <- function(
     pro_init <- c(pro_init * (1 - noise_prop), noise_prop)
   }
 
-  # Construct theta = kappa * mu
-  theta_init <- mu_init * kappa_init
-
-  return(list(theta = theta_init, pro = pro_init))
+  # Keep mu and kappa separate (rather than folding into theta = kappa * mu)
+  # to avoid overflow: for extreme kappa, kappa^2 can overflow to Inf even
+  # though kappa and kappa * mu remain finite and well-defined. movMF::movMF
+  # follows the same convention, always keeping kappa and the mean directions
+  # as separate objects throughout the EM recursions.
+  return(list(mu = mu_init, kappa = kappa_init, pro = pro_init))
 }
 
 #' Convert class IDs to posterior probability matrix
@@ -325,24 +327,30 @@ em_movMF <- function(
 #' E-step: Compute posterior probabilities
 #'
 #' @param x Data matrix (n x d)
-#' @param theta Canonical parameters (G x d)
+#' @param mu Mean direction parameters (G x d), each row a unit vector
+#' @param kappa Concentration parameters (length G)
 #' @param pro Mixing proportions (length G or G+1 if noise)
 #' @param d Number of dimensions
 #' @param Vinv Inverse hypervolume for noise component (or NULL if no noise)
 #' @return List with z (posterior probabilities)
 #' @keywords internal
-.e_step <- function(x, theta, pro, d, Vinv = NULL) {
-  G <- nrow(theta)
+.e_step <- function(x, mu, kappa, pro, d, Vinv = NULL) {
+  G <- nrow(mu)
   n <- nrow(x)
   has_noise <- !is.null(Vinv)
 
-  # Compute cross_prod = x %*% t(theta) = <x_i, theta_g>
-  cross_prod <- tcrossprod(x, theta)
+  # Compute cross_prod = x %*% t(kappa * mu) = kappa_g * <x_i, mu_g>
+  # NOTE: theta = kappa * mu is formed here (linear in kappa), but kappa
+  # itself is never recovered via sqrt(rowSums(theta^2)): squaring kappa
+  # can overflow to Inf for extreme concentrations (e.g. kappa ~ 1e200)
+  # even though kappa and kappa * mu remain perfectly finite. Always pass
+  # kappa in directly (as movMF::movMF does) instead of reconstructing it
+  # from theta.
+  cross_prod <- tcrossprod(x, kappa * mu)
 
   # Compute log normalizing constants
   # movMF uses lH(kappa, nu) where nu = d/2-1
-  kappa_vals <- sqrt(rowSums(theta^2))
-  log_C <- -movMF:::lH(kappa_vals, d / 2 - 1)
+  log_C <- -movMF:::lH(kappa, d / 2 - 1)
 
   # Compute log posteriors: log z[i,g] = log(pro_g) + <x_i, theta_g> + log_C_g
   log_z <- sweep(cross_prod, 2, log(pro[1:G]), "+")
@@ -417,23 +425,24 @@ em_movMF <- function(
 #' Compute log-likelihood
 #'
 #' @param x Data matrix (n x d)
-#' @param theta Canonical parameters (G x d)
+#' @param mu Mean direction parameters (G x d), each row a unit vector
+#' @param kappa Concentration parameters (length G)
 #' @param pro Mixing proportions (length G or G+1 if noise)
 #' @param d Number of dimensions
 #' @param Vinv Inverse hypervolume for noise component (or NULL if no noise)
 #' @return Log-likelihood value
 #' @keywords internal
-.compute_loglik <- function(x, theta, pro, d, Vinv = NULL) {
-  G <- nrow(theta)
+.compute_loglik <- function(x, mu, kappa, pro, d, Vinv = NULL) {
+  G <- nrow(mu)
   has_noise <- !is.null(Vinv)
 
-  # Compute cross_prod = x %*% t(theta) = <x_i, theta_g>
-  cross_prod <- tcrossprod(x, theta)
+  # Compute cross_prod = x %*% t(kappa * mu) = kappa_g * <x_i, mu_g>
+  # (see note in .e_step(): kappa is never recovered from squared theta)
+  cross_prod <- tcrossprod(x, kappa * mu)
 
   # Compute log normalizing constants
   # movMF uses lH(kappa, nu) where nu = d/2-1
-  kappa_vals <- sqrt(rowSums(theta^2))
-  log_C <- -movMF:::lH(kappa_vals, d / 2 - 1)
+  log_C <- -movMF:::lH(kappa, d / 2 - 1)
 
   # Log-likelihood contributions: log(pro_g) + <x_i, theta_g> + log_C_g
   log_densities <- sweep(cross_prod, 2, log(pro[1:G]), "+")
