@@ -33,7 +33,7 @@
 \item{control}{List of control parameters (used to get kappa_method and noise_prop)}
 }
 \value{
-List with theta and pro
+List with mu, kappa, and pro
 }
 \description{
 Initialize parameters for EM algorithm

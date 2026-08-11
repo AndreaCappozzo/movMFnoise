@@ -4,12 +4,14 @@
 \alias{.compute_loglik}
 \title{Compute log-likelihood}
 \usage{
-.compute_loglik(x, theta, pro, d, Vinv = NULL)
+.compute_loglik(x, mu, kappa, pro, d, Vinv = NULL)
 }
 \arguments{
 \item{x}{Data matrix (n x d)}
 
-\item{theta}{Canonical parameters (G x d)}
+\item{mu}{Mean direction parameters (G x d), each row a unit vector}
+
+\item{kappa}{Concentration parameters (length G)}
 
 \item{pro}{Mixing proportions (length G or G+1 if noise)}
 

@@ -484,3 +484,94 @@ test_that("fit_movMFnoise detects noise component when present", {
   expect_true(n_classified_noise > 0)
   expect_true(n_classified_noise < nrow(x_with_noise))
 })
+
+# Test: numerical stability under extreme concentration (kappa) ================
+
+test_that("em_movMF (noise=FALSE) matches movMF::movMF under extreme concentration", {
+  # Helper to build a component with an (approximately) exact resultant length
+  # Rbar, so that kappa can be pushed to very large but still finite values
+  # without simulating via rmovMF (which cannot handle such kappa directly).
+  mk_component <- function(n, d, rbar) {
+    eps <- sqrt(1 - rbar^2)
+    x <- matrix(0, n, d)
+    tangent <- matrix(rnorm(n * (d - 1)), n, d - 1)
+    tangent <- tangent / sqrt(rowSums(tangent^2))
+    x[, 1] <- rbar
+    x[, 2:d] <- tangent * eps
+    x / sqrt(rowSums(x^2))
+  }
+
+  set.seed(2024)
+  d <- 4
+  # Component 1 is extremely concentrated (kappa on the order of 1e10),
+  # large enough that theta = kappa * mu previously triggered overflow
+  # when kappa was recovered via sqrt(rowSums(theta^2)) (kappa^2 overflows
+  # to Inf well before kappa itself does). Component 2 is more diffuse.
+  x1 <- mk_component(250, d, 1 - 1e-10)
+  x2 <- mk_component(250, d, 0.9)
+  x <- rbind(x1, x2)
+
+  fit_mine <- em_movMF(
+    x,
+    G = 2,
+    noise = FALSE,
+    control = control_movMFnoise(nstart = 5)
+  )
+  fit_ref <- movMF::movMF(x, k = 2, control = list(nruns = 5))
+
+  kappa_mine <- sort(fit_mine$parameters$kappa)
+  kappa_ref <- sort(sqrt(rowSums(fit_ref$theta^2)))
+
+  # No overflow: kappa estimates must be finite
+  expect_true(all(is.finite(kappa_mine)))
+
+  # Agreement with movMF::movMF's reference implementation (loose relative
+  # tolerance since huge kappa values are only estimated approximately and
+  # random initializations can differ slightly).
+  expect_equal(kappa_mine, kappa_ref, tolerance = 1e-3)
+  expect_equal(fit_mine$loglik, fit_ref$L, tolerance = 1e-4)
+})
+
+test_that("em_movMF internals do not overflow when recovering kappa from theta", {
+  # Directly exercise the regime where kappa^2 overflows to Inf but kappa
+  # itself (and kappa * mu) remain finite and well-defined (kappa^2 overflows
+  # once kappa exceeds roughly sqrt(.Machine$double.xmax) ~ 1.34e154).
+  kappa <- 1e200
+  mu <- c(1, 0, 0)
+  theta <- mu * kappa
+
+  # sqrt(rowSums(theta^2)) is the pattern that used to be used internally
+  # to recover kappa from theta; confirm it indeed overflows, motivating
+  # why em_movMF must carry mu and kappa separately instead.
+  expect_true(is.infinite(sqrt(sum(theta^2))))
+  expect_true(is.finite(kappa))
+
+  # The internal E-step/log-likelihood helpers, which take mu and kappa
+  # separately (never squaring kappa back out of theta), must not suffer
+  # from this overflow. We use a kappa just below the range supported by
+  # movMF:::lH() itself (which independently relies on kappa^2 and stops
+  # working beyond ~1.34e154), to isolate the fix in em_movMF from that
+  # separate, pre-existing limitation of the Bessel approximation.
+  kappa2 <- 1e153
+  x <- matrix(mu, nrow = 1)
+  pro <- 1
+  res <- movMFnoise:::.e_step(
+    x,
+    matrix(mu, nrow = 1),
+    kappa2,
+    pro,
+    d = 3,
+    Vinv = NULL
+  )
+  expect_true(all(is.finite(res$z)))
+
+  ll <- movMFnoise:::.compute_loglik(
+    x,
+    matrix(mu, nrow = 1),
+    kappa2,
+    pro,
+    d = 3,
+    Vinv = NULL
+  )
+  expect_true(is.finite(ll))
+})

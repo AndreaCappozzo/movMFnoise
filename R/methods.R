@@ -38,13 +38,13 @@ predict.movMFnoise <- function(object, newdata, ...) {
     # Extract parameters
     # mu is now d x G, transpose back to G x d for internal use
     mu_internal <- t(object$parameters$mu)
-    theta <- mu_internal * object$parameters$kappa
+    kappa <- object$parameters$kappa
     pro <- object$parameters$pro
     d <- object$d
     Vinv <- object$parameters$Vinv
 
     # Compute posterior probabilities for new data
-    z <- .e_step(newdata, theta, pro, d, Vinv)$z
+    z <- .e_step(newdata, mu_internal, kappa, pro, d, Vinv)$z
   }
 
   # Map to hard classifications
