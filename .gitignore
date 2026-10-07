@@ -52,3 +52,7 @@ rsconnect/
 /.quarto/
 **/*.quarto_ipynb
 .posit/assistant
+.positai
+
+# Mac stuff
+.DS_Store

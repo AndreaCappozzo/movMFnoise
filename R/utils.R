@@ -69,7 +69,7 @@ kappa_update <- function(x, method = "Newton_Fourier") {
 #' This function specifies convergence criteria, initialization strategy, and
 #' the method for computing concentration parameters.
 #'
-#' @param maxiter Integer. Maximum number of EM iterations. Default is 100.
+#' @param maxiter Integer. Maximum number of EM iterations. Default is 1000.
 #' @param reltol Numeric. Relative tolerance for convergence. The algorithm
 #'   stops when the relative change in log-likelihood is smaller than \code{reltol}.
 #'   Default is \code{sqrt(.Machine$double.eps)}.
@@ -86,6 +86,7 @@ kappa_update <- function(x, method = "Newton_Fourier") {
 #'     \item{matrix}{User-provided matrix of initial posterior probabilities}
 #'     \item{vector}{User-provided vector of initial class IDs}
 #'   }
+#' @param noise_prop Proportion of noise used for initialization of EM algorithm.
 #'
 #' @return A list with components corresponding to the control parameters.
 #'
@@ -106,7 +107,7 @@ kappa_update <- function(x, method = "Newton_Fourier") {
 #' # Using seeds-based initialization
 #' control_movMFnoise(start = "s")
 control_movMFnoise <- function(
-  maxiter = 100L,
+  maxiter = 1000L,
   reltol = sqrt(.Machine$double.eps),
   kappa_method = "Newton_Fourier",
   nstart = 10L,
@@ -121,4 +122,94 @@ control_movMFnoise <- function(
     start = start,
     noise_prop = noise_prop
   )
+}
+
+#' @keywords internal
+#' @noRd
+.catwrap <- function(x, width = getOption("width"), ...)
+{
+# version of cat with wrapping at specified width
+  cat(paste(strwrap(x, width = width, ...), collapse = "\n"), "\n")
+}
+
+#' Print Representative Columns and Rows for a Matrix
+#'
+#' Prints a shortened matrix containing configurable numbers of leading and
+#' trailing rows and columns.
+#'
+#' @param x A matrix to summarize.
+#' @param head number of initial rows to print
+#' @param tail number of last rows to print
+#' @param chead number of initial columns to print
+#' @param ctail number of last columns to print
+#' @param ... extra arguments passed to [print()]
+#' @keywords internal
+#' @noRd
+.printShortMatrix <- function(x, head = 2, tail = 1, chead = 5, ctail = 1, ...)
+{
+  x <- as.matrix(x)
+  nr <- nrow(x)
+  nc <- ncol(x)
+  rnames <- rownames(x)
+  cnames <- colnames(x)
+  dnames <- names(dimnames(x))
+
+  if(is.na(head <- as.numeric(head))) head <- 2
+  if(is.na(tail <- as.numeric(tail))) tail <- 1
+  if(is.na(chead <- as.numeric(chead))) chead <- 5
+  if(is.na(ctail <- as.numeric(ctail))) ctail <- 1
+
+  if(nr > (head + tail))
+  {
+    if(is.null(rnames))
+      rnames <- paste("[", 1:nr, ",]", sep ="")
+    x <- rbind(x[1:head,,drop=FALSE],
+               rep(NA, nc),
+               x[(nr-tail+1):nr,,drop=FALSE])
+    rownames(x) <- c(rnames[1:head], ":", rnames[(nr-tail+1):nr])
+  }
+  if(nc > (chead + ctail))
+  {
+    if(is.null(cnames))
+      cnames <- paste("[,", 1:nc, "]", sep ="")
+    x <- cbind(x[,1:chead,drop=FALSE],
+               rep(NA, nrow(x)),
+               x[,(nc-ctail+1):nc,drop=FALSE])
+    colnames(x) <- c(cnames[1:chead], "...", cnames[(nc-ctail+1):nc])
+  }
+  names(dimnames(x)) <- dnames
+  print(x, na.print = "", ...)
+  invisible(x)
+}
+
+#' Print representative values of a vector
+#'
+#' Prints a shortened vector containing configurable numbers of leading and
+#' trailing values
+#'
+#' @param x A vector to show.
+#' @param head number of initial values to print.
+#' @param tail number of last values to print.
+#' @param ... extra arguments passed to [print()]
+#' @keywords internal
+#' @noRd
+.printShortVector <- function(x, head = 2, tail = 1, ...)
+{
+  names <- names(x)
+  x <- setNames(as.vector(x), names)
+  n <- length(x)
+
+  if(is.na(head <- as.numeric(head))) head <- 2
+  if(is.na(tail <- as.numeric(tail))) tail <- 1
+
+  if(n > (head + tail))
+  {
+    if(is.null(names))
+      names <- paste("[", 1:n, "]", sep ="")
+    x <- c(x[1:head, drop=FALSE], NA,
+           x[(n-tail+1):n, drop=FALSE])
+    names(x) <- c(names[1:head], "...", names[(n-tail+1):n])
+  }
+  print.default(x, na.print = "", ...)
+  invisible(x)
 }

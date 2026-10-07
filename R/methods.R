@@ -4,7 +4,8 @@
 #' @param noise Logical indicating if noise component is present (default: FALSE)
 #' @return Vector of component assignments (1:G, or 0 for noise if present)
 #' @keywords internal
-map_classification <- function(z, noise = FALSE) {
+map_classification <- function(z, noise = FALSE)
+{
   classification <- apply(z, 1, which.max)
 
   # If noise component is present, label it as 0 (follows mclust convention)
@@ -20,48 +21,108 @@ map_classification <- function(z, noise = FALSE) {
 
 #' Predict method for movMFnoise objects
 #'
-#' @param object A movMFnoise object returned by em_movMF
-#' @param newdata Optional new data matrix (n x d). If missing, uses training data
-#' @param ... Additional arguments (currently unused)
-#' @return List with components:
-#'   \item{classification}{Vector of component assignments}
-#'   \item{z}{Posterior probability matrix}
+#' @param object A `'movMFnoise'` object returned by `movMFnoise()` function
+#' call.
+#' @param newdata Optional new data matrix (n x d). If missing, training data are
+#' used.
+#' @param what A character string specifying what to retrieve: `"dens"`
+#' returns a vector of values for the mixture density; `"cdens"` returns a
+#' matrix of component densities for each mixture component (along the
+#' columns); `"z"` returns a matrix of component posterior probabilities; `"map"`
+#' returns the map classification.
+#' @param logarithm A logical value indicating whether or not the logarithm of
+#' the densities/probabilities should be returned.
+#' @param ... Further arguments passed to or from other methods.
+#'
+#' @return Return predictions according to `what` argument.
 #' @export
-predict.movMFnoise <- function(object, newdata, ...) {
-  if (missing(newdata)) {
-    # Use the posterior probabilities from fitting
-    z <- object$z
-  } else {
+predict.movMFnoise <- function(object, newdata,
+                               what = c("dens", "cdens", "z", "map"),
+                               normalized = TRUE,
+                               logarithm = FALSE, ...)
+{
+  if(!inherits(object, "movMFnoise"))
+    stop("object not of class 'movMFnoise'")
+  what <- match.arg(what)
+  if(missing(newdata))
+  {
+    newdata <- object$data
+  } else
+  {
+    newdata <- data.matrix(newdata)
     # Normalize newdata to unit vectors
     newdata <- newdata / sqrt(rowSums(newdata^2))
-
-    # Extract parameters
-    # mu is now d x G, transpose back to G x d for internal use
-    mu_internal <- t(object$parameters$mu)
-    kappa <- object$parameters$kappa
-    pro <- object$parameters$pro
-    d <- object$d
-    Vinv <- object$parameters$Vinv
-
-    # Compute posterior probabilities for new data
-    z <- .e_step(newdata, mu_internal, kappa, pro, d, Vinv)$z
   }
-
-  # Map to hard classifications
-  has_noise <- !is.null(object$parameters$Vinv)
+  n <- nrow(newdata)
+  if((d <- ncol(newdata)) != object$d)
+    stop("newdata of different dimension from <object>$data")
   G <- object$G
+  surface_area <- (2*pi^(d/2)) / gamma(d/2)
 
-  classification <- apply(z, 1, which.max)
+  # Extract parameters
+  # mu is now d x G, transpose back to G x d for internal use
+  mu    <- t(object$parameters$mu)
+  kappa <- object$parameters$kappa
+  pro   <- object$parameters$pro
+  Vinv  <- object$parameters$Vinv
+  has_noise <- !is.null(Vinv)
 
-  # Label noise component as 0 (mclust convention)
-  if (has_noise) {
-    classification[classification == (G + 1)] <- 0
+  # Compute cross_prod = x %*% t(kappa * mu) = kappa_g * <x_i, mu_g>
+  cross_prod <- tcrossprod(newdata, kappa * mu)
+  # Compute log normalizing constants
+  log_C <- -movMF:::lH(kappa, d / 2 - 1)
+  # Compute log-density = log(pro_g) + <x_i, theta_g> + log_C_g
+  ldens <- sweep(cross_prod, 2, log(pro[1:G]), "+")
+  ldens <- sweep(ldens, 2, log_C, "+")
+
+  if(has_noise)
+  {
+    # add noise component if present
+    # Uniform density on sphere: f(x) = Vinv (constant)
+    # log f(x) = log(Vinv)
+    ldens_noise <- matrix(log(Vinv) + log(pro[G + 1]),
+                          nrow = n, ncol = 1,
+                          dimnames = list(NULL, "0"))
+    ldens <- cbind(ldens, ldens_noise)
   }
 
-  # Set column names for z matrix
-  colnames(z) <- if (has_noise) c(seq_len(G), 0) else seq_len(G)
+  if(!normalized)
+  {
+    ldens <- ldens - log(surface_area)
+  }
 
-  return(list(classification = classification, z = z))
+  if(what == "cdens")
+  {
+    # return mixture components density
+    cdens <- if(logarithm) ldens else exp(ldens)
+    return(cdens)
+  }
+
+  max_ldens <- apply(ldens, 1, max)
+  if(what == "z")
+  {
+    # return probability of belong to mixture components
+    # Normalize to get probabilities (softmax)
+    z <- exp(ldens - max_ldens)
+    z <- z / rowSums(z)
+    return(z)
+  }
+
+  if(what == "map")
+  {
+    # return map classification
+    z <- exp(ldens - max_ldens)
+    classification <- apply(z, 1, which.max)
+    # label noise component as 0 (mclust convention)
+    if(has_noise)
+      classification[classification == (G + 1)] <- 0
+    return(classification)
+  }
+
+  # return mixture density
+  ldens <- max_ldens + log(rowSums(exp(ldens - max_ldens)))
+  dens <- if(logarithm) ldens else exp(ldens)
+  return(dens)
 }
 
 #' Print method for movMFnoise objects
@@ -69,9 +130,10 @@ predict.movMFnoise <- function(object, newdata, ...) {
 #' @param x A movMFnoise object
 #' @param ... Additional arguments passed to print
 #' @export
-print.movMFnoise <- function(x, ...) {
+print.movMFnoise <- function(x, ...)
+{
   # Check if this is a fitted model with model selection
-  is_fitted <- inherits(x, "movMFnoise_fitted")
+  is_fitted <- nrow(x$models_summary) > 1
 
   txt <- paste0("'movMFnoise' model object: ")
   has_noise <- !is.null(x$parameters$Vinv)
@@ -79,32 +141,26 @@ print.movMFnoise <- function(x, ...) {
   if (x$G == 0 & has_noise) {
     txt <- paste0(txt, "single noise component")
   } else {
-    txt <- paste0(
-      txt,
-      x$G,
-      "-component mixture of von Mises-Fisher distributions"
-    )
-    if (has_noise) {
-      txt <- paste0(txt, " with noise")
-    }
+    txt <- paste0(txt, "mixture of ", x$G, " von Mises-Fisher distributions")
+    if(has_noise) txt <- paste0(txt, " with noise")
   }
-
-  cat(txt, "\n")
+  .catwrap(paste(txt))
+  cat("\n")
 
   # Print model selection summary if available
-  if (is_fitted && !is.null(x$model_summary)) {
-    cat("\nModel selection summary:\n")
-    cat(sprintf(
-      "  Best model: G=%d, noise=%s (selected by %s)\n",
-      x$best_G,
-      x$best_noise,
-      toupper(x$criterion)
-    ))
-    cat(sprintf("  Number of models fitted: %d\n", nrow(x$model_summary)))
-    cat(sprintf("  G range: %d-%d\n", min(x$G_sequence), max(x$G_sequence)))
+  if(is_fitted)
+  {
+    cat("Model selection summary:\n")
+    cat(sprintf("  Best model: G=%d, noise=%s (selected by %s)\n",
+                x$best_G, x$best_noise, toupper(x$criterion)))
+    cat(sprintf("  Number of fitted models: %d\n", nrow(x$models_summary)))
+    cat(sprintf("  G range: %d-%d\n",
+                min(x$models_summary$G),
+                max(x$models_summary$G)))
+    cat("\n")
   }
 
-  cat("\nAvailable components:\n")
+  cat("Available components:\n")
   print(names(x))
 
   invisible(x)
@@ -115,9 +171,10 @@ print.movMFnoise <- function(x, ...) {
 #' @param object A movMFnoise object
 #' @param ... Additional arguments (currently unused)
 #' @export
-summary.movMFnoise <- function(object, ...) {
+summary.movMFnoise <- function(object, ...)
+{
   has_noise <- !is.null(object$parameters$Vinv)
-  is_fitted <- inherits(object, "movMFnoise_fitted")
+  is_fitted <- nrow(object$models_summary) > 1
 
   # Get classification (use stored classification if available)
   classification <- if (!is.null(object$classification)) {
@@ -126,6 +183,11 @@ summary.movMFnoise <- function(object, ...) {
     # Fallback for older objects without classification component
     map_classification(object$z, noise = has_noise)
   }
+  classification <- factor(classification,
+                           levels = { l <- seq_len(object$G)
+                           if(has_noise) l <- c(l,0)
+                           l })
+
   uncertainty <- 1 - apply(object$z, 1, max)
 
   # Mixing proportions
@@ -136,37 +198,31 @@ summary.movMFnoise <- function(object, ...) {
     names(pro) <- seq_len(object$G)
   }
 
-  result <- list(
-    n = object$n,
-    d = object$d,
-    G = object$G,
-    loglik = object$loglik,
-    bic = object$bic,
-    icl = object$icl,
-    pro = pro,
-    mu = object$parameters$mu,
-    kappa = object$parameters$kappa,
-    Vinv = object$parameters$Vinv,
-    hypvol = object$hypvol,
-    classification = classification,
-    uncertainty = uncertainty,
-    converged = object$converged,
-    iterations = object$iterations
-  )
+  result <- list(n = object$n,
+                 d = object$d,
+                 G = object$G,
+                 loglik = object$loglik,
+                 df = object$df,
+                 bic = object$bic,
+                 icl = object$icl,
+                 pro = pro,
+                 mu = object$parameters$mu,
+                 kappa = object$parameters$kappa,
+                 Vinv = object$parameters$Vinv,
+                 hypvol = object$hypvol,
+                 classification = classification,
+                 uncertainty = uncertainty,
+                 converged = object$converged,
+                 iterations = object$iterations)
 
   # Add model selection info if available
-  if (is_fitted) {
-    result$model_summary <- object$model_summary
-    result$best_G <- object$best_G
-    result$best_noise <- object$best_noise
+  if(is_fitted)
+  {
+    result$models_summary <- object$models_summary
     result$criterion <- object$criterion
   }
 
-  class(result) <- c(
-    "summary.movMFnoise",
-    if (is_fitted) "summary.movMFnoise_fitted"
-  )
-
+  class(result) <- "summary.movMFnoise"
   return(result)
 }
 
@@ -176,76 +232,66 @@ summary.movMFnoise <- function(object, ...) {
 #' @param digits Number of digits to print
 #' @param ... Additional arguments passed to print
 #' @export
-print.summary.movMFnoise <- function(x, digits = getOption("digits"), ...) {
+print.summary.movMFnoise <- function(x, digits = getOption("digits"), ...)
+{
   has_noise <- !is.null(x$Vinv)
-  is_fitted <- inherits(x, "summary.movMFnoise_fitted")
-
-  cat(paste(rep("-", 70), collapse = ""), "\n")
-  cat("Mixture of von Mises-Fisher distributions")
-  if (has_noise) {
-    cat(" with noise component")
-  }
-  cat("\n")
-  cat(paste(rep("-", 70), collapse = ""), "\n\n")
-
-  cat(sprintf("Number of observations: %d\n", x$n))
-  cat(sprintf("Dimension: %d\n", x$d))
-  cat(sprintf("Number of components: %d", x$G))
-  if (has_noise) {
-    cat(" + noise")
-  }
+  title <- "Mixture of von Mises-Fisher distributions"
+  title <- ifelse(has_noise, paste(title, "with noise component"), title)
+  txt <- paste(rep("-", min(nchar(x$title), getOption("width"))), collapse = "")
+  .catwrap(txt)
+  .catwrap(title)
+  .catwrap(txt)
   cat("\n")
 
-  # Print model selection info if available
-  if (is_fitted && !is.null(x$model_summary)) {
-    cat(sprintf(
-      "Model selection: Best G=%d (noise=%s) selected by %s\n",
-      x$best_G,
-      x$best_noise,
-      toupper(x$criterion)
-    ))
-  }
+  tab <- data.frame("n" = x$n, "d" = x$d,
+                    "G" = paste0(x$G, if(has_noise) "+noise" else ""),
+                    "log-likelihood" = x$loglik, "df" = x$df,
+                    "BIC" = x$bic, "ICL" = x$icl,
+                    check.names = FALSE)
+  print(tab, row.names = FALSE, digits = digits)
+  cat("\n")
 
-  cat(sprintf("Log-likelihood: %.4f\n", x$loglik))
-  cat(sprintf("BIC: %.4f\n", x$bic))
-  cat(sprintf("ICL: %.4f\n", x$icl))
-  cat(sprintf("Converged: %s (iterations: %d)\n\n", x$converged, x$iterations))
-
-  cat("Mixing proportions:\n")
+  cat("Mixing proportions (pi):\n")
   print(round(x$pro, digits = digits))
   cat("\n")
 
-  if (x$G > 0) {
+  if (x$G > 0)
+  {
+    cat("Mean directions (mu):\n")
+    .printShortMatrix(x$mu, digits = digits,
+                      head = 5, tail = 2, chead = 5, ctail = 2)
+    cat("\n")
     cat("Concentration parameters (kappa):\n")
-    print(round(x$kappa, digits = digits))
+    .printShortVector(x$kappa, digits = digits,
+                      head = 5, tail = 2)
     cat("\n")
   }
 
-  if (has_noise) {
-    cat(sprintf("Noise component hypervolume: %.4e\n", x$hypvol))
-    cat(sprintf("Noise component density: %.4e\n\n", x$Vinv))
+  if(has_noise)
+  {
+    .catwrap(sprintf("Noise: uniform distribution on S^%d with density %.*g",
+                     x$d-1, getOption("digits"), x$Vinv))
+    cat("\n")
   }
 
-  cat("Classification table:\n")
+  cat("Classification table:")
   print(table(x$classification))
-  cat("\n")
 
   # Print model comparison table if available
-  if (is_fitted && !is.null(x$model_summary)) {
-    cat("All fitted models:\n")
-    summary_table <- x$model_summary
-    summary_table$loglik <- round(summary_table$loglik, 2)
-    summary_table$bic <- round(summary_table$bic, 2)
-    summary_table$icl <- round(summary_table$icl, 2)
-
-    # Mark best model
-    best_row <- which(
-      summary_table$G == x$best_G &
-        summary_table$noise == x$best_noise
-    )
-
-    print(summary_table, row.names = FALSE)
-    cat(sprintf("  (Row %d selected as best)\n\n", best_row))
+  if(!is.null(x$models_summary))
+  {
+    cat("\nModel selection:\n")
+    summary_table <- x$models_summary
+    # mark best model
+    best_model <- rep("", nrow(summary_table))
+    best_row <- which.max(summary_table[[x$criterion]])
+    best_model[best_row] <- "*"
+    summary_table <- cbind(summary_table, best_model)
+    colnames(summary_table)[ncol(summary_table)] <- ""
+    print(summary_table, row.names = FALSE, digits = getOption("digits"))
+    cat(sprintf("\bBest model G=%d%s selected by %s.\n",
+                x$G, ifelse(is.null(x$Vinv), "", "+noise"),
+                toupper(x$criterion)))
   }
 
   invisible(x)

@@ -73,12 +73,10 @@ noise <- noise / sqrt(rowSums(noise^2))       # Uniform noise
 data <- rbind(x1, x2, noise)
 
 # Fit model with noise component
-fit <- fit_movMFnoise(data, G = 2, noise = TRUE, 
-                      control = control_movMFnoise(nstart = 5))
-
+fit <- movMFnoise(data, G = 2, noise = TRUE, 
+                  control = control_movMFnoise(nstart = 5))
 # View results
 summary(fit)
-table(fit$classification)  # 0 = noise, 1:G = components
 ```
 
 ### Related R Packages

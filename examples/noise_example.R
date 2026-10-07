@@ -1,6 +1,6 @@
 # Example: Mixture of von Mises-Fisher with noise component
 # This example demonstrates fitting a movMF model with a uniform noise component
-# using fit_movMFnoise(), the main function of the package
+# using movMFnoise(), the main function of the package
 
 # NOTE: If running this example from the package source directory, use:
 #   devtools::load_all()
@@ -43,57 +43,35 @@ true_labels <- c(rep(1, n_cluster1), rep(2, n_cluster2), rep(0, n_noise))
 
 # Fit model WITHOUT noise component
 cat("=== Fitting model without noise ===\n")
-fit_no_noise <- fit_movMFnoise(
-  x,
-  G = 2,
-  noise = FALSE,
-  control = control_movMFnoise(nstart = 5),
-  verbose = TRUE,
-)
+fit_no_noise <- movMFnoise(data = x, G = 2,
+                           noise = FALSE,
+                           control = control_movMFnoise(nstart = 5))
 print(fit_no_noise)
+print(summary(fit_no_noise))
 
 # Fit model WITH noise component
 cat("\n=== Fitting model with noise ===\n")
-fit_with_noise <- fit_movMFnoise(
-  x,
-  G = 2,
-  noise = TRUE,
-  control = control_movMFnoise(nstart = 5),
-  verbose = TRUE
-)
+fit_with_noise <- movMFnoise(data = x, G = 2,
+                             noise = TRUE,
+                             control = control_movMFnoise(nstart = 5),
+                             verbose = TRUE)
 print(fit_with_noise)
+print(summary(fit_with_noise))
 
 # Compare classifications
 cat("\n=== Classification comparison ===\n")
-cat("True labels:\n")
-print(table(true_labels))
-
-cat("\nWithout noise component:\n")
-print(table(fit_no_noise$classification))
-
+cat("\nwithout noise component:\n")
+print(table(true_labels, cluster = fit_no_noise$classification))
 cat("\nWith noise component:\n")
-print(table(fit_with_noise$classification))
+print(table(true_labels, cluster = fit_with_noise$classification))
 
 # Adjusted Rand Index (if package is available)
 if (requireNamespace("mclust", quietly = TRUE)) {
   cat("\n=== Adjusted Rand Index ===\n")
-  ari_no_noise <- mclust::adjustedRandIndex(
-    true_labels,
-    fit_no_noise$classification
-  )
-  ari_with_noise <- mclust::adjustedRandIndex(
-    true_labels,
-    fit_with_noise$classification
-  )
-
+  ari_no_noise <- mclust::adjustedRandIndex(true_labels,
+                                            fit_no_noise$classification)
+  ari_with_noise <- mclust::adjustedRandIndex(true_labels,
+                                              fit_with_noise$classification)
   cat(sprintf("Without noise: %.4f\n", ari_no_noise))
   cat(sprintf("With noise: %.4f\n", ari_with_noise))
 }
-
-# Summary
-cat("\n=== Model summaries ===\n")
-cat("\nWithout noise:\n")
-print(summary(fit_no_noise))
-
-cat("\nWith noise:\n")
-print(summary(fit_with_noise))

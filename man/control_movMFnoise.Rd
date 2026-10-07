@@ -5,7 +5,7 @@
 \title{Control Parameters for Mixture of von Mises-Fisher with Noise}
 \usage{
 control_movMFnoise(
-  maxiter = 100L,
+  maxiter = 1000L,
   reltol = sqrt(.Machine$double.eps),
   kappa_method = "Newton_Fourier",
   nstart = 10L,
@@ -14,7 +14,7 @@ control_movMFnoise(
 )
 }
 \arguments{
-\item{maxiter}{Integer. Maximum number of EM iterations. Default is 100.}
+\item{maxiter}{Integer. Maximum number of EM iterations. Default is 1000.}
 
 \item{reltol}{Numeric. Relative tolerance for convergence. The algorithm
 stops when the relative change in log-likelihood is smaller than \code{reltol}.
@@ -35,6 +35,8 @@ solution (highest log-likelihood) across all starts is returned. Default is 10.}
 \item{matrix}{User-provided matrix of initial posterior probabilities}
 \item{vector}{User-provided vector of initial class IDs}
 }}
+
+\item{noise_prop}{Proportion of noise used for initialization of EM algorithm.}
 }
 \value{
 A list with components corresponding to the control parameters.

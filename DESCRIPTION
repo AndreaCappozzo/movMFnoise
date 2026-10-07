@@ -1,6 +1,12 @@
 Package: movMFnoise
 Title: Mixtures of von Mises-Fisher Distributions with a Noise Component
-Version: 0.0.0.9000
+Description: Fits mixtures of von Mises-Fisher distributions with a noise 
+    component on the high-dimensional unit hypersphere using the EM algorithm. 
+    The package provides functions for model estimation, model selection via 
+    BIC and ICL, and includes a noise component to handle outliers and uniform 
+    noise. It follows the same parameterization and fitting procedures used in
+    the 'movMF' package.
+Version: 0.1
 Authors@R: 
     c(person(given = "Andrea",
              family = "Cappozzo",
@@ -17,12 +23,6 @@ Authors@R:
              role = "aut",
              email = "brendan.murphy@ucd.ie",
              comment = c(ORCID = "0000-0002-5668-7046")))
-Description: Fits mixtures of von Mises-Fisher distributions with a noise 
-    component on the high-dimensional unit hypersphere using the EM algorithm. 
-    The package provides functions for model estimation, model selection via 
-    BIC and ICL, and includes a noise component to handle outliers and uniform 
-    noise. It follows the same conventions as the 'movMF' package for 
-    parameterization and concentration parameter (kappa) computation.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

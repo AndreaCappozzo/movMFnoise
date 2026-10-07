@@ -4,19 +4,35 @@
 \alias{predict.movMFnoise}
 \title{Predict method for movMFnoise objects}
 \usage{
-\method{predict}{movMFnoise}(object, newdata, ...)
+\method{predict}{movMFnoise}(
+  object,
+  newdata,
+  what = c("dens", "cdens", "z", "map"),
+  normalized = TRUE,
+  logarithm = FALSE,
+  ...
+)
 }
 \arguments{
-\item{object}{A movMFnoise object returned by em_movMF}
+\item{object}{A \code{'movMFnoise'} object returned by \code{movMFnoise()} function
+call.}
 
-\item{newdata}{Optional new data matrix (n x d). If missing, uses training data}
+\item{newdata}{Optional new data matrix (n x d). If missing, training data are
+used.}
 
-\item{...}{Additional arguments (currently unused)}
+\item{what}{A character string specifying what to retrieve: \code{"dens"}
+returns a vector of values for the mixture density; \code{"cdens"} returns a
+matrix of component densities for each mixture component (along the
+columns); \code{"z"} returns a matrix of component posterior probabilities; \code{"map"}
+returns the map classification.}
+
+\item{logarithm}{A logical value indicating whether or not the logarithm of
+the densities/probabilities should be returned.}
+
+\item{...}{Further arguments passed to or from other methods.}
 }
 \value{
-List with components:
-\item{classification}{Vector of component assignments}
-\item{z}{Posterior probability matrix}
+Return predictions according to \code{what} argument.
 }
 \description{
 Predict method for movMFnoise objects
